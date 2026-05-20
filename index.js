@@ -14,3 +14,53 @@ const {
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+app.use(
+  cors({
+    origin: [process.env.CLIENT_URL || "http://localhost:3000"],
+    credentials: true,
+  }),
+);
+
+app.use(express.json());
+
+const uri = process.env.MONGODB_URI;
+
+const client = new MongoClient(uri, {
+  serverApi: {
+    version: ServerApiVersion.v1,
+    strict: true,
+    deprecationErrors: true,
+  },
+});
+
+async function run() {
+  try {
+    await client.connect();
+    console.log("✅ Connected to MongoDB Atlas");
+
+    const db = client.db("docappoint");
+    const bookingsCollection = db.collection("bookings");
+
+    setCollection(bookingsCollection);
+
+    app.use("/auth", authRoutes);
+    app.use("/bookings", bookingRoutes);
+
+    app.get("/", (req, res) => {
+      res.json({ message: "DocAppoint Server is running ✅" });
+    });
+
+    app.use((req, res) => {
+      res.status(404).json({ message: "Route not found" });
+    });
+
+    app.listen(PORT, () => {
+      console.log(` Server running on port ${PORT}`);
+    });
+  } catch (err) {
+    console.error("❌ MongoDB connection failed:", err);
+    process.exit(1);
+  }
+}
+
+run();
